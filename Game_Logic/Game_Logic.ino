@@ -37,6 +37,15 @@ const int LINE_SENSOR6 = A5;
 const int LINE_SENSOR7 = A6;
 const int LINE_SENSOR8 = A7;
 
+const int sensorPins[8] = {
+  LINE_SENSOR1, LINE_SENSOR2, LINE_SENSOR3, LINE_SENSOR4,
+  LINE_SENSOR5, LINE_SENSOR6, LINE_SENSOR7, LINE_SENSOR8
+};
+
+int sensorValues[8];
+
+const int NUM_SENSORS = 8;
+
 int blackDetection = 900;
 
 long distanceFront, distanceRight, distanceLeft;
@@ -45,23 +54,21 @@ Adafruit_NeoPixel pixels(4, 13, NEO_GRB + NEO_KHZ800);
 
 void setup(){
   Serial.begin(9600);
-
   pinMode(LEFTMOTORBACK, OUTPUT);
   pinMode(LEFTMOTORSTRAIGHT, OUTPUT);
   pinMode(RIGHTMOTORBACK, OUTPUT);
   pinMode(RIGHTMOTORSTRAIGHT, OUTPUT);
-
   pinMode(TRIGPIN_RIGHT, OUTPUT);
   pinMode(ECHOPIN_RIGHT, INPUT);
   pinMode(TRIGPIN, OUTPUT);
   pinMode(ECHOPIN, INPUT);
   pinMode(TRIGPIN_LEFT, OUTPUT);
   pinMode(ECHOPIN_LEFT, INPUT);
-
+  pinMode(SERVO, OUTPUT);
+  holdGripper(GRIPPER_OPEN, 1000);
   for (int i = 14; i < 22; i++){
     pinMode(i, INPUT);
   }
-
   pixels.begin();      
   pixels.clear();      
   pixels.show();       
@@ -71,30 +78,30 @@ boolean parkingMode = true;
 boolean mode = true; // true = maze || false = line
 
 void loop(){
-  
+  gripper(0);
   distanceLeft = readDistance(TRIGPIN_LEFT, ECHOPIN_LEFT);
   distanceRight = readDistance(TRIGPIN_RIGHT, ECHOPIN_RIGHT);
   distanceFront = readDistance(TRIGPIN, ECHOPIN);
-  Serial.println(distanceFront);
   if(distanceFront < 30 && parkingMode == true){
-    holdGripper(GRIPPER_OPEN, 1000);
     //delay(1000);
-    moveForward(SPEED, SPEED);
-    delay(2050);
+    while (distanceLeft < 10) {
+      moveForward(SPEED, SPEED);
+      distanceLeft = readDistance(TRIGPIN_LEFT, ECHOPIN_LEFT);
+    }
+    delay (750);
     stopMoving();
     holdGripper(GRIPPER_CLOSE, 1000);
     turnLeft();
     turnLeft();
     moveForward(SPEED, SPEED);
-    delay(4000);
+    delay(700);
+    moveAndCorrect(3000);
     parkingMode = false;
   }
   if (!parkingMode){
     if (checkLine()){
-      gripper(0);
       lineFollowing();
     }else{
-      gripper(0);
       maze();
     }
   }
@@ -104,14 +111,13 @@ void loop(){
   //pixels.setPixelColor(2, pixels.Color(0, 0, 255));   // синий 2 - правый верхний
   //pixels.setPixelColor(3, pixels.Color(0, 255, 0));  // крассный 3 - левый верхний
   //pixels.show();
-  
-  
 }
 
 void holdGripper(int pulse,int timeMs){
   unsigned long start = millis();
   while(millis() - start < timeMs){
     gripper(pulse);
+    delay(1);
   }
 }
 
@@ -131,29 +137,24 @@ void gripper(int newPulse){
 
 void moveAndCorrect(int duration){
   unsigned long startTime = millis();
-
   while (millis() - startTime < duration){
     long currentLeft = readDistance(TRIGPIN_LEFT, ECHOPIN_LEFT);
     long currentRight = readDistance(TRIGPIN_RIGHT, ECHOPIN_RIGHT);
-
     if (readDistance(TRIGPIN, ECHOPIN) < STOP_DISTANCE){
       stopMoving();
       break;
     }
-
     if (currentLeft < 9){
-      moveForward(SPEED + 20, SPEED - 10);
+      moveForward(SPEED + 30, SPEED - 10);
     }
-    else if (currentRight < 8){
-      moveForward(SPEED - 10, SPEED + 20);
+    else if (currentRight < 9){
+      moveForward(SPEED - 10, SPEED + 30);
     }
     else{
       moveForward(SPEED, SPEED);
     }
-
     delay(20);
   }
-
   stopMoving();
 }
 
@@ -165,10 +166,8 @@ void moveForward(int leftSpeed, int rightSpeed){
   pixels.show();
   leftSpeed = constrain(leftSpeed, 0, 255);
   rightSpeed = constrain(rightSpeed, 0, 255);
-
   analogWrite(LEFTMOTORSTRAIGHT, leftSpeed);
   analogWrite(LEFTMOTORBACK, 0);
-
   analogWrite(RIGHTMOTORSTRAIGHT, rightSpeed);
   analogWrite(RIGHTMOTORBACK, 0);
 }
@@ -187,11 +186,9 @@ void turnLeft(){
   pixels.setPixelColor(3, pixels.Color(255, 255, 0)); 
   pixels.show();
   analogWrite(LEFTMOTORSTRAIGHT, 0);
-  analogWrite(LEFTMOTORBACK, SPEED);
-
+  analogWrite(LEFTMOTORBACK, SPEED + 20);
   analogWrite(RIGHTMOTORSTRAIGHT, SPEED);
   analogWrite(RIGHTMOTORBACK, 0);
-
   delay(TURN_90_TIME);
   stopMoving();
 }
@@ -204,32 +201,20 @@ void turnRight(){
   pixels.show();
   analogWrite(LEFTMOTORSTRAIGHT, SPEED);
   analogWrite(LEFTMOTORBACK, 0);
-
   analogWrite(RIGHTMOTORSTRAIGHT, 0);
   analogWrite(RIGHTMOTORBACK, SPEED + 10);
-
   delay(600);
   stopMoving();
 }
 
 void turnAround(){
-  analogWrite(LEFTMOTORSTRAIGHT, SPEED);
-  analogWrite(LEFTMOTORBACK, 0);
-
-  analogWrite(RIGHTMOTORSTRAIGHT, 0);
-  analogWrite(RIGHTMOTORBACK, SPEED);
-
-  delay(200);
   moveBack();
-  delay(400);
-
-  analogWrite(LEFTMOTORSTRAIGHT, SPEED);
+  delay(500);
+  analogWrite(LEFTMOTORSTRAIGHT, SPEED+20);
   analogWrite(LEFTMOTORBACK, 0);
-
   analogWrite(RIGHTMOTORSTRAIGHT, 0);
-  analogWrite(RIGHTMOTORBACK, SPEED);
-
-  delay(400);
+  analogWrite(RIGHTMOTORBACK, SPEED+20);
+  delay(700);
   stopMoving();
 }
 
@@ -241,10 +226,8 @@ void moveBack(){
   pixels.show();
   analogWrite(LEFTMOTORSTRAIGHT, 0);
   analogWrite(LEFTMOTORBACK, SPEED);
-
   analogWrite(RIGHTMOTORSTRAIGHT, 0);
   analogWrite(RIGHTMOTORBACK, SPEED - RIGHT_MOTOR_SPEED_DERCREMENTATION);
-
   delay(350);
   stopMoving();
 }
@@ -252,17 +235,13 @@ void moveBack(){
 long readDistance(int trig, int echo){
   digitalWrite(trig, LOW);
   delayMicroseconds(2);
-
   digitalWrite(trig, HIGH);
   delayMicroseconds(10);
   digitalWrite(trig, LOW);
-
   long duration = pulseIn(echo, HIGH, 6000);
-
   if (duration == 0){
     return 1000;
   }
-
   return duration * 0.0343 / 2;
 }
 
@@ -296,36 +275,34 @@ void maze(){
   }
 }
 
-bool checkLine(){
-  int s1 = analogRead(LINE_SENSOR1);
-  int s2 = analogRead(LINE_SENSOR2);
-  int s3 = analogRead(LINE_SENSOR3);
-  int s4 = analogRead(LINE_SENSOR4);
-  int s5 = analogRead(LINE_SENSOR5);
-  int s6 = analogRead(LINE_SENSOR6);
-  int s7 = analogRead(LINE_SENSOR7);
-  int s8 = analogRead(LINE_SENSOR8);
+void readSensors() {
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    sensorValues[i] = analogRead(sensorPins[i]);
+  }
+}
 
-  if (s1 >= 950 || s2 >= 950 || s3 >= 950 || s4 >= 950 || s5 >= 950 || s6 >= 950 || s7 >= 950 || s8 >= 950)
-  {
-    return true;
+bool checkLine(){
+  readSensors();
+  for (int i = 0; i < NUM_SENSORS; i++){
+    if  (sensorValues[i] >= blackDetection){
+      return true;
+    }
   }
   return false;
 }
 
 void lineFollowing()
 {
-  int s1 = analogRead(LINE_SENSOR1);
-  int s2 = analogRead(LINE_SENSOR2);
-  int s3 = analogRead(LINE_SENSOR3);
-  int s4 = analogRead(LINE_SENSOR4);
-  int s5 = analogRead(LINE_SENSOR5);
-  int s6 = analogRead(LINE_SENSOR6);
-  int s7 = analogRead(LINE_SENSOR7);
-  int s8 = analogRead(LINE_SENSOR8);
+  readSensors();
+  bool allBlack = true;
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    if (sensorValues[i] < blackDetection) {
+      allBlack = false;
+      break;
+    }
+  }
 
-  if (s1 >= blackDetection && s2 >= blackDetection && s3 >= blackDetection && s4 >= blackDetection && s5 >= blackDetection && s6 >= blackDetection && s7 >= blackDetection && s8 >= blackDetection)
-  {
+  if (allBlack){
     stopMoving();
     pixels.setPixelColor(0, pixels.Color(255, 0, 0));   
     pixels.setPixelColor(1, pixels.Color(255, 0, 0));  
@@ -333,49 +310,23 @@ void lineFollowing()
     pixels.setPixelColor(3, pixels.Color(255, 0, 0));  
     pixels.show();
     holdGripper(GRIPPER_OPEN, 2000); 
-    delay(10000);
+    while (true){
+      stopMoving();
+    }
   }
-  else if (s4 >= blackDetection && s5 >= blackDetection){
-    analogWrite(LEFTMOTORSTRAIGHT, 180);
-    analogWrite(LEFTMOTORBACK, 0);
-
-    analogWrite(RIGHTMOTORSTRAIGHT, 180);
-    analogWrite(RIGHTMOTORBACK, 0);
-  }else if (s6 >= blackDetection){
-    analogWrite(LEFTMOTORSTRAIGHT, 100);
-    analogWrite(LEFTMOTORBACK, 0);
-
-    analogWrite(RIGHTMOTORSTRAIGHT, 200);
-    analogWrite(RIGHTMOTORBACK, 0);
-  }else if (s3 >= blackDetection){
-    analogWrite(LEFTMOTORSTRAIGHT, 160);
-    analogWrite(LEFTMOTORBACK, 0);
-
-    analogWrite(RIGHTMOTORSTRAIGHT, 100);
-    analogWrite(RIGHTMOTORBACK, 0);
-  }else if (s7 >= blackDetection){
-    analogWrite(LEFTMOTORSTRAIGHT, 50);
-    analogWrite(LEFTMOTORBACK, 0);
-
-    analogWrite(RIGHTMOTORSTRAIGHT, 230);
-    analogWrite(RIGHTMOTORBACK, 0);
-  }else if (s8 >= blackDetection){
-    analogWrite(LEFTMOTORSTRAIGHT, 0);
-    analogWrite(LEFTMOTORBACK, 0);
-
-    analogWrite(RIGHTMOTORSTRAIGHT, 230);
-    analogWrite(RIGHTMOTORBACK, 0);
-  }else if (s2 >= blackDetection){
-    analogWrite(LEFTMOTORSTRAIGHT, 190);
-    analogWrite(LEFTMOTORBACK, 0);
-
-    analogWrite(RIGHTMOTORSTRAIGHT, 50);
-    analogWrite(RIGHTMOTORBACK, 0);
-  }else if (s1 >= blackDetection){
-    analogWrite(LEFTMOTORSTRAIGHT, 230);
-    analogWrite(LEFTMOTORBACK, 0);
-
-    analogWrite(RIGHTMOTORSTRAIGHT, 0);
-    analogWrite(RIGHTMOTORBACK, 0);
+  else if (sensorValues[3] >= blackDetection && sensorValues[4] >= blackDetection){
+    moveForward(180, 180);
+  }else if (sensorValues[5] >= blackDetection){
+    moveForward(100, 200);
+  }else if (sensorValues[2] >= blackDetection){
+    moveForward(160, 100);
+  }else if (sensorValues[6] >= blackDetection){
+    moveForward(50, 230);
+  }else if (sensorValues[7] >= blackDetection){
+    moveForward(0, 230);
+  }else if (sensorValues[1] >= blackDetection){
+    moveForward(190, 50);
+  }else if (sensorValues[0] >= blackDetection){
+    moveForward(230, 0);
   }
 }
