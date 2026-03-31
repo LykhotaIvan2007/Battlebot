@@ -128,16 +128,16 @@ void start(){
       distanceLeft = readDistance(TRIGPIN_LEFT, ECHOPIN_LEFT);
     }
 
-    delay (750);
+    delay (950);
     stopMoving();
 
     holdGripper(GRIPPER_CLOSE, 1000); // Close gripper (grab object)
 
     //turnLeft();
-    turnLeft(); // Turn around
-
+    turnLeft(750);
+    
     moveForward(SPEED, SPEED);
-    delay(700);
+    delay(2000);
 
     moveAndCorrect(3000); // Move forward with wall correction
 
@@ -228,7 +228,7 @@ void stopMoving(){
 }
 
 // TURNING 
-void turnLeft(){
+void turnLeft(int timeForTurn){
   pixels.setPixelColor(0, pixels.Color(255, 255, 0));
   pixels.setPixelColor(1, pixels.Color(0, 0, 0));
   pixels.setPixelColor(2, pixels.Color(0, 0, 0));
@@ -240,7 +240,7 @@ void turnLeft(){
   analogWrite(RIGHTMOTORSTRAIGHT, SPEED);
   analogWrite(RIGHTMOTORBACK, 0);
 
-  delay(TURN_90_TIME);
+  delay(timeForTurn);
   stopMoving();
 }
 
@@ -321,7 +321,7 @@ void maze(){
     moveAndCorrect(TIME_WHEN_WAY_DETECTED);
     stopMoving();
 
-    turnLeft();
+    turnLeft(TURN_90_TIME);
     moveAndCorrect(TIME_FOR_NEW_PATH);
   }
   else if (distanceFront > STOP_DISTANCE){
