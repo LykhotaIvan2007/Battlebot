@@ -7,7 +7,8 @@ const int SPEED_INCREMENTATION_MOVE_AND_CORRECT = 20; // Speed increase when cor
 const int SPEED_DECREMENTATION_MOVE_AND_CORRECT = 10; // Speed decrease when correcting
 const int WALL_ALIGNING_DISTANCE = 9; // Distance to maintain from wall
 
-int TURN_90_TIME = 600; // Time to turn 90 degrees
+const int TURN_90_TIME = 600; 
+const int TURN_START_TIME = 750;
 
 const int EMPTY_WAY_DISTANCE = 30; // Distance considered as open path
 const int STOP_DISTANCE = 15; // Distance to stop before obstacle
@@ -31,8 +32,8 @@ const int TRIGPIN_LEFT = 8;
 
 // GRIPPER
 const int SERVO = 12;
-const int GRIPPER_OPEN = 1600;  // Pulse width for open position
-const int GRIPPER_CLOSE = 990;  // Pulse width for closed position
+const int GRIPPER_OPEN = 1600;  // Pulse for open position
+const int GRIPPER_CLOSE = 990;  // Pulse for closed position
 
 // LINE SENSOR PINS 
 const int LINE_SENSOR1 = A0;
@@ -64,6 +65,7 @@ Adafruit_NeoPixel pixels(4, 13, NEO_GRB + NEO_KHZ800);
 
 void setup(){
   // Set motor pins as output
+  Serial.begin(9600);
   pinMode(LEFTMOTORBACK, OUTPUT);
   pinMode(LEFTMOTORSTRAIGHT, OUTPUT);
   pinMode(RIGHTMOTORBACK, OUTPUT);
@@ -103,6 +105,7 @@ void loop(){
   distanceLeft = readDistance(TRIGPIN_LEFT, ECHOPIN_LEFT);
   distanceRight = readDistance(TRIGPIN_RIGHT, ECHOPIN_RIGHT);
   distanceFront = readDistance(TRIGPIN, ECHOPIN);
+  Serial.println(distanceFront);
 
   start(); // Execute starting sequence
 
@@ -123,7 +126,7 @@ void start(){
     delay(3000);
 
     // Move forward until left side is clear
-    while (distanceLeft < 10){
+    while (distanceLeft < 25){
       moveForward(SPEED, SPEED);
       distanceLeft = readDistance(TRIGPIN_LEFT, ECHOPIN_LEFT);
     }
@@ -134,7 +137,7 @@ void start(){
     holdGripper(GRIPPER_CLOSE, 1000); // Close gripper (grab object)
 
     //turnLeft();
-    turnLeft(750);
+    turnLeft(TURN_START_TIME);
     
     moveForward(SPEED, SPEED);
     delay(2000);
